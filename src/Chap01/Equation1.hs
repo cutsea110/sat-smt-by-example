@@ -25,3 +25,13 @@ script = do
     ]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y, z]
+
+
+plus x y = mkAdd [x,y]
+
+e1 x y z _1 _2 _3 = do
+  t1 <- mkMul [_3, x]
+  t2 <- mkMul [_2, y]
+  t3 <- mkUnaryMinus z
+  lhs <- mkAdd [t1,t2,t3]
+  mkEq _1 lhs
