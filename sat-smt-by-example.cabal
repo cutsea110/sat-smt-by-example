@@ -19,6 +19,7 @@ extra-source-files:  CHANGELOG.md
 
 library
   exposed-modules:     MyLib
+                     , Chap01.Equation1
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14, z3
