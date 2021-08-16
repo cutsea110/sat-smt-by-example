@@ -35,12 +35,12 @@ data Expr = EVar String
           | EPlus Expr Expr
           deriving (Eq, Ord, Show)
 
-intVar :: MonadZ3 z3 => String -> State (Map.Map Expr (z3 AST)) (Maybe (z3 AST))
+intVar :: MonadZ3 z3 => String -> State (Map.Map Expr (z3 AST)) (z3 AST)
 intVar name = do
   m <- get
   let (mayVal, m') = Map.insertLookupWithKey (\ _ n _ -> n) (EVar name) (mkFreshIntVar name) m
   put m'
-  return mayVal
+  return $ m' Map.! EVar name
 
 plus :: MonadZ3 z3 => AST -> AST -> State (Map.Map AST (z3 AST))  (z3 AST)
 x `plus` y = undefined
