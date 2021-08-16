@@ -42,9 +42,9 @@ intVar name = do
   put m'
   return $ m' Map.! EVar name
 
-plus :: MonadZ3 z3 => AST -> AST -> State (Map.Map AST (z3 AST))  (z3 AST)
-x `plus` y = undefined
-
+plus :: MonadZ3 z3 => z3 AST -> z3 AST -> State (Map.Map AST (z3 AST))  (z3 AST)
+x `plus` y = return $ mkAdd =<< T.sequence [x,y]
+  
 e1 :: MonadZ3 z3 => AST -> AST -> AST -> AST -> AST -> AST -> z3 AST
 e1 x y z _1 _2 _3 = do
   t1 <- mkMul [_3, x]
