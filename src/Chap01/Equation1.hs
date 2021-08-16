@@ -1,5 +1,7 @@
 module Chap01.Equation1 where
 
+import Control.Monad.State
+import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Traversable as T
 
@@ -27,8 +29,21 @@ script = do
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
 
-plus :: MonadZ3 z3 => AST -> AST -> z3 AST
-x `plus` y = mkAdd [x,y]
+
+data Expr = EVar String
+          | EInt Integer
+          | EPlus Expr Expr
+          deriving (Eq, Ord, Show)
+
+var :: MonadZ3 z3 => String -> State (Map.Map Expr (z3 AST)) (Maybe (z3 AST))
+var name = do
+  m <- get
+  let (mayVal, m') = Map.insertLookupWithKey (\ _ n _ -> n) (EVar name) (mkFreshIntVar name) m
+  put m'
+  return mayVal
+
+plus :: MonadZ3 z3 => AST -> AST -> State (Map.Map AST (z3 AST))  (z3 AST)
+x `plus` y = undefined
 
 e1 :: MonadZ3 z3 => AST -> AST -> AST -> AST -> AST -> AST -> z3 AST
 e1 x y z _1 _2 _3 = do
