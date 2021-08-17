@@ -32,5 +32,15 @@ data Expr = EVar String
           | EInt Integer
           | EReal Double
           | EPlus Expr Expr
+          | EMinus Expr Expr
           | ETimes Expr Expr
-          deriving (Eq, Ord, Show)
+          deriving (Eq, Show)
+
+data Rel = Eq Expr Expr
+         | Lt Expr Expr
+         | Gt Expr Expr
+         | Le Expr Expr
+         | Ge Expr Expr
+         deriving (Eq, Show)
+
+rel1 = EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EMinus` EVar "z")
