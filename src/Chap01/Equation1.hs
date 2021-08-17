@@ -32,4 +32,5 @@ data Expr = EVar String
           | EInt Integer
           | EReal Double
           | EPlus Expr Expr
+          | ETimes Expr Expr
           deriving (Eq, Ord, Show)
