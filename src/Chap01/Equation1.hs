@@ -43,4 +43,7 @@ data Rel = Eq Expr Expr
          | Ge Expr Expr
          deriving (Eq, Show)
 
+rel1, rel2, rel3 :: Rel
 rel1 = EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EMinus` EVar "z")
+rel2 = EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EMinus` (EInt 2 `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
+rel3 = EInt 0 `Eq` (EVar "x" `EPlus` (EReal 0.5 `ETimes` EVar "y") `EMinus` EVar "z")
