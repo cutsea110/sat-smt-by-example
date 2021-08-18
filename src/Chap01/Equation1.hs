@@ -1,6 +1,5 @@
 module Chap01.Equation1 where
 
-import Control.Monad.State
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Traversable as T
@@ -47,3 +46,9 @@ rel1, rel2, rel3 :: Rel
 rel1 = EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EMinus` EVar "z")
 rel2 = EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EMinus` (EInt 2 `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
 rel3 = EInt 0 `Eq` (EVar "x" `EPlus` (EReal 0.5 `ETimes` EVar "y") `EMinus` EVar "z")
+
+evalRel :: MonadZ3 z3 => Map.Map Expr (z3 AST) -> Rel -> z3 AST
+evalRel = undefined
+
+evalExpr :: MonadZ3 z3 => Map.Map Expr (z3 AST) -> Expr -> z3 AST
+evalExpr = undefined
