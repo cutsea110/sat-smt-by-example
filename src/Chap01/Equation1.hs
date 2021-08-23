@@ -33,7 +33,7 @@ data Expr = EVar String
           | EPlus Expr Expr
           | EMinus Expr Expr
           | ETimes Expr Expr
-          deriving (Eq, Show)
+          deriving (Eq, Ord, Show)
 
 data Rel = Eq Expr Expr
          | Lt Expr Expr
@@ -47,8 +47,47 @@ rel1 = EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y"
 rel2 = EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EMinus` (EInt 2 `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
 rel3 = EInt 0 `Eq` (EVar "x" `EPlus` (EReal 0.5 `ETimes` EVar "y") `EMinus` EVar "z")
 
-evalRel :: MonadZ3 z3 => Map.Map Expr (z3 AST) -> Rel -> z3 AST
-evalRel = undefined
+evalRel :: MonadZ3 z3 => Map.Map Expr (z3 AST) -> Rel -> z3 (Map.Map Expr (z3 AST), AST)
+evalRel m (Eq lhs rhs) = undefined
+evalRel m (Lt lhs rhs) = undefined
+evalRel m (Gt lhs rhs) = undefined
+evalRel m (Le lhs rhs) = undefined
+evalRel m (Ge lhs rhs) = undefined
 
-evalExpr :: MonadZ3 z3 => Map.Map Expr (z3 AST) -> Expr -> z3 AST
-evalExpr = undefined
+evalExpr :: MonadZ3 z3 => Map.Map Expr AST -> Expr -> z3 (Map.Map Expr AST, AST)
+evalExpr m key@(EVar x)
+  = case Map.lookup key m of
+      Just v -> do
+        return (m, v)
+      Nothing -> do
+        v <- mkFreshIntVar x
+        return (Map.insert key v m, v)
+evalExpr m key@(EInt n)
+  = case Map.lookup key m of
+      Just v -> do
+        return (m, v)
+      Nothing -> do
+        v <- mkInteger n
+        return (Map.insert key v m, v)
+evalExpr m key@(EReal d)
+  = case Map.lookup key m of
+      Just v -> do
+        return (m, v)
+      Nothing -> do
+        v <- mkRealNum d
+        return (Map.insert key v m, v)
+evalExpr m (EPlus x y) = do
+  (m1, x') <- evalExpr m  x
+  (m2, y') <- evalExpr m1 y
+  v <- mkAdd [x', y']
+  return (m2, v)
+evalExpr m (EMinus x y) = do
+  (m1, x') <- evalExpr m  x
+  (m2, y') <- evalExpr m1 y
+  v <- mkSub [x', y']
+  return (m2, v)
+evalExpr m (ETimes x y) = do
+  (m1, x') <- evalExpr m  x
+  (m2, y') <- evalExpr m1 y
+  v <- mkMul [x', y']
+  return (m2, v)
