@@ -27,6 +27,20 @@ script = do
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
+
+script' :: Z3 (Maybe [Integer])
+script' = do
+  let m0 = Map.empty
+  (m1, r1) <- evalRel m0 rel1
+  (m2, r2) <- evalRel m1 rel2
+  (m3, r3) <- evalRel m2 rel3
+  assert =<< mkAnd [r1, r2, r3]
+  let (Just x) = Map.lookup (EVar "x") m3
+  let (Just y) = Map.lookup (EVar "y") m3
+  let (Just z) = Map.lookup (EVar "z") m3
+  fmap snd $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) [x, y, z]
+
 data Expr = EVar String
           | EInt Integer
           | EReal Double
