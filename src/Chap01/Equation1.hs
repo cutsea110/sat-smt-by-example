@@ -1,5 +1,7 @@
 module Chap01.Equation1 where
 
+import Control.Arrow (second)
+import Control.Monad (foldM)
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Traversable as T
@@ -34,27 +36,34 @@ sample = do
 simple :: Z3 (Maybe [Integer])
 simple = do
   let m0 = Map.empty
-  (m1, r1) <- evalRel m0 (EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z")))
-  (m2, r2) <- evalRel m1 (EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z")))
-  (m3, r3) <- evalRel m2 (EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z")))
-  assert =<< mkAnd [r1, r2, r3]
-  let (Just x) = Map.lookup (EVar "x") m3
-  let (Just y) = Map.lookup (EVar "y") m3
-  let (Just z) = Map.lookup (EVar "z") m3
+  m1 <- constraint m0 [ EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+                      , EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
+                      , EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+                      ]
   fmap snd $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) [x, y, z]
+    catMaybes <$> mapM (evalInt m) (query m1 [EVar "x", EVar "y", EVar "z"])
 
-assertRels :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 ()
-assertRels m rels = do
+query :: Map.Map Expr AST -> [Expr] -> [AST]
+query = mapMaybe . flip Map.lookup
+
+constraint :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 (Map.Map Expr AST)
+constraint m rels = do
   (m', rs) <- evalRels m rels
   assert =<< mkAnd rs
+  return m'
 
 evalRels :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 (Map.Map Expr AST, [AST])
+evalRels m0 rels = second reverse <$> foldM f (m0, []) rels
+  where f (m,  rs) rel = do
+          (m', r) <- evalRel m rel
+          return (m', r:rs)
+{-
 evalRels m [] = return (m, [])
 evalRels m (rel:rels) = do
   (m1, r)  <- evalRel m rel
   (m2, rs) <- evalRels m1 rels
   return (m2, r:rs)
+-}
 
 {- |
 >>> evalZ3 test
