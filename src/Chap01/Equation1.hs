@@ -34,17 +34,18 @@ script = do
 
 {- |
 >>> evalZ3 test
-Just [2,1]
+Just [1,2]
 -}
 test :: Z3 (Maybe [Integer])
 test = do
   let m0 = Map.empty
   (m1, r1) <- evalRel m0 (EVar "x" `Gt` EInt 0)
   (m2, r2) <- evalRel m1 (EVar "y" `Gt` EInt 0)
-  (m3, r3) <- evalRel m2 (EInt 3 `Eq` (EVar "x" `EPlus` EVar "y"))
-  assert =<< mkAnd [r1, r2, r3]
-  let (Just x) = Map.lookup (EVar "x") m3
-  let (Just y) = Map.lookup (EVar "y") m3
+  (m3, r3) <- evalRel m2 (EVar "y" `Ge` EVar "x")
+  (m4, r4) <- evalRel m3 (EInt 3 `Eq` (EVar "x" `EPlus` EVar "y"))
+  assert =<< mkAnd [r1, r2, r3, r4]
+  let (Just x) = Map.lookup (EVar "x") m4
+  let (Just y) = Map.lookup (EVar "y") m4
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y]
 
