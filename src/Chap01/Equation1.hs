@@ -6,6 +6,10 @@ import qualified Data.Traversable as T
 
 import Z3.Monad
 
+{- |
+>>> evalZ3 script
+Just [2,4,1,3]
+-}
 script :: Z3 (Maybe [Integer])
 script = do
   x <- mkFreshIntVar "x"
@@ -28,18 +32,21 @@ script = do
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
 
-script' :: Z3 (Maybe [Integer])
-script' = do
+{- |
+>>> evalZ3 test
+Just [2,1]
+-}
+test :: Z3 (Maybe [Integer])
+test = do
   let m0 = Map.empty
-  (m1, r1) <- evalRel m0 rel1
-  (m2, r2) <- evalRel m1 rel2
-  (m3, r3) <- evalRel m2 rel3
+  (m1, r1) <- evalRel m0 (EVar "x" `Gt` EInt 0)
+  (m2, r2) <- evalRel m1 (EVar "y" `Gt` EInt 0)
+  (m3, r3) <- evalRel m2 (EInt 3 `Eq` (EVar "x" `EPlus` EVar "y"))
   assert =<< mkAnd [r1, r2, r3]
   let (Just x) = Map.lookup (EVar "x") m3
   let (Just y) = Map.lookup (EVar "y") m3
-  let (Just z) = Map.lookup (EVar "z") m3
   fmap snd $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) [x, y, z]
+    catMaybes <$> mapM (evalInt m) [x, y]
 
 data Expr = EVar String
           | EInt Integer
@@ -58,8 +65,8 @@ data Rel = Eq Expr Expr
 
 rel1, rel2, rel3 :: Rel
 rel1 = EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EMinus` EVar "z")
-rel2 = EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EMinus` (EInt 2 `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
-rel3 = EInt 0 `Eq` (EVar "x" `EPlus` (EReal 0.5 `ETimes` EVar "y") `EMinus` EVar "z")
+rel2 = EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
+rel3 = EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
 
 evalRel :: MonadZ3 z3 => Map.Map Expr AST -> Rel -> z3 (Map.Map Expr AST, AST)
 evalRel m (Eq lhs rhs) = do
