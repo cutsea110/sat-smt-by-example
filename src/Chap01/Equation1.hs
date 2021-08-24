@@ -7,11 +7,11 @@ import qualified Data.Traversable as T
 import Z3.Monad
 
 {- |
->>> evalZ3 script
-Just [2,4,1,3]
+>>> evalZ3 sample
+Just [1, -2, -2]
 -}
-script :: Z3 (Maybe [Integer])
-script = do
+sample :: Z3 (Maybe [Integer])
+sample = do
   x <- mkFreshIntVar "x"
   y <- mkFreshIntVar "y"
   z <- mkFreshIntVar "z"
@@ -24,13 +24,37 @@ script = do
   _4  <- mkInteger 4
   _0_5 <- mkRealNum 0.5
   assert =<< mkAnd =<< T.sequence
-    [ mkEq _1  =<< mkAdd =<< T.sequence [mkMul [_3, x], mkMul [_2, y], mkUnaryMinus z]
+    [ mkEq _1  =<< mkAdd =<< T.sequence [mkMul [_3, x], mkMul [_2, y], mkMul [_1', z]]
     , mkEq _2' =<< mkAdd =<< T.sequence [mkMul [_2, x], mkMul [_2', y], mkMul [_4, z]]
     , mkEq _0  =<< mkAdd =<< T.sequence [mkMul [_1', x], mkMul [_0_5, y], mkMul [_1', z]]
     ]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
+simple :: Z3 (Maybe [Integer])
+simple = do
+  let m0 = Map.empty
+  (m1, r1) <- evalRel m0 (EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z")))
+  (m2, r2) <- evalRel m1 (EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z")))
+  (m3, r3) <- evalRel m2 (EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z")))
+  assert =<< mkAnd [r1, r2, r3]
+  let (Just x) = Map.lookup (EVar "x") m3
+  let (Just y) = Map.lookup (EVar "y") m3
+  let (Just z) = Map.lookup (EVar "z") m3
+  fmap snd $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) [x, y, z]
+
+assertRels :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 ()
+assertRels m rels = do
+  (m', rs) <- evalRels m rels
+  assert =<< mkAnd rs
+
+evalRels :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 (Map.Map Expr AST, [AST])
+evalRels m [] = return (m, [])
+evalRels m (rel:rels) = do
+  (m1, r)  <- evalRel m rel
+  (m2, rs) <- evalRels m1 rels
+  return (m2, r:rs)
 
 {- |
 >>> evalZ3 test
