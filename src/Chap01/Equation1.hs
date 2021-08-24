@@ -36,15 +36,21 @@ sample = do
 simple :: Z3 (Maybe [Integer])
 simple = do
   let m0 = Map.empty
-  m1 <- constraint m0 [ EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
-                      , EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
-                      , EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
-                      ]
+  m1 <- constraint m0
+        [ EInt 1 `Eq` ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+        , EInt (-2) `Eq` ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
+        , EInt 0 `Eq` ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+        ]
   fmap snd $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) (query m1 [EVar "x", EVar "y", EVar "z"])
+    catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
 
-query :: Map.Map Expr AST -> [Expr] -> [AST]
-query = mapMaybe . flip Map.lookup
+query' :: Map.Map Expr AST -> [Expr] -> [AST]
+query' = mapMaybe . flip Map.lookup
+
+-- | TODO: EVar を EIVar とかして Typable にしつつ evalReal などを呼ぶようにしたい
+query m e@(EVar var) o = do
+  let Just x = Map.lookup e m
+  evalInt o x
 
 constraint :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 (Map.Map Expr AST)
 constraint m rels = do
