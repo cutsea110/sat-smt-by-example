@@ -37,9 +37,9 @@ simple :: Z3 (Maybe [Integer])
 simple = do
   let m0 = Map.empty
   m1 <- constraint m0
-        [ EInt 1 :==: ((EInt 3 :*: EVar "x") :+: (EInt 2 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
-        , EInt (-2) :==: ((EInt 2 :*: EVar "x") :+: (EInt (-2) :*: EVar "y") :+: (EInt 4 :*: EVar "z"))
-        , EInt 0 :==: ((EInt (-1) :*: EVar "x") :+: (EReal 0.5 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
+        [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
+        , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
+        , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
         ]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
@@ -97,10 +97,14 @@ data Rel = Expr :==: Expr
          | Expr :>=: Expr
          deriving (Eq, Show)
 
+infixl 7 :*:
+infixl 6 :+:, :-:
+infix  4 :==:, :/=:, :<:, :>:, :<=:, :>=:
+
 rel1, rel2, rel3 :: Rel
-rel1 = EInt 1 :==: ((EInt 3 :*: EVar "x") :+: (EInt 2 :*: EVar "y") :-: EVar "z")
-rel2 = EInt (-2) :==: ((EInt 2 :*: EVar "x") :+: (EInt (-2) :+: EVar "y") :+: (EInt 4 :*: EVar "z"))
-rel3 = EInt 0 :==: ((EInt (-1) :*: EVar "x") :+: (EReal 0.5 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
+rel1 = EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :-: EVar "z"
+rel2 = EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :+: EVar "y" :+: EInt 4    :*: EVar "z"
+rel3 = EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
 
 evalRel :: MonadZ3 z3 => Map.Map Expr AST -> Rel -> z3 (Map.Map Expr AST, AST)
 evalRel m (lhs :==: rhs) = do
