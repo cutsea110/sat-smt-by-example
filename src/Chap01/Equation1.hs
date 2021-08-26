@@ -74,7 +74,7 @@ test = do
   (m1, r1) <- evalRel m0 (EVar "x" :>: EInt 0)
   (m2, r2) <- evalRel m1 (EVar "y" :>: EInt 0)
   (m3, r3) <- evalRel m2 (EVar "y" :>=: EVar "x")
-  (m4, r4) <- evalRel m3 (EInt 3 :==: (EVar "x" :+: EVar "y"))
+  (m4, r4) <- evalRel m3 (EInt 3 :==: EVar "x" :+: EVar "y")
   assert =<< mkAnd [r1, r2, r3, r4]
   let (Just x) = Map.lookup (EVar "x") m4
   let (Just y) = Map.lookup (EVar "y") m4
