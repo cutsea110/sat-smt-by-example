@@ -37,9 +37,9 @@ simple :: Z3 (Maybe [Integer])
 simple = do
   let m0 = Map.empty
   m1 <- constraint m0
-        [ EInt 1 :==: ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
-        , EInt (-2) :==: ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `ETimes` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
-        , EInt 0 :==: ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+        [ EInt 1 :==: ((EInt 3 :*: EVar "x") :+: (EInt 2 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
+        , EInt (-2) :==: ((EInt 2 :*: EVar "x") :+: (EInt (-2) :*: EVar "y") :+: (EInt 4 :*: EVar "z"))
+        , EInt 0 :==: ((EInt (-1) :*: EVar "x") :+: (EReal 0.5 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
         ]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
@@ -74,7 +74,7 @@ test = do
   (m1, r1) <- evalRel m0 (EVar "x" :>: EInt 0)
   (m2, r2) <- evalRel m1 (EVar "y" :>: EInt 0)
   (m3, r3) <- evalRel m2 (EVar "y" :>=: EVar "x")
-  (m4, r4) <- evalRel m3 (EInt 3 :==: (EVar "x" `EPlus` EVar "y"))
+  (m4, r4) <- evalRel m3 (EInt 3 :==: (EVar "x" :+: EVar "y"))
   assert =<< mkAnd [r1, r2, r3, r4]
   let (Just x) = Map.lookup (EVar "x") m4
   let (Just y) = Map.lookup (EVar "y") m4
@@ -84,9 +84,9 @@ test = do
 data Expr = EVar String
           | EInt Integer
           | EReal Double
-          | EPlus Expr Expr
-          | EMinus Expr Expr
-          | ETimes Expr Expr
+          | Expr :+: Expr
+          | Expr :-: Expr
+          | Expr :*: Expr
           deriving (Eq, Ord, Show)
 
 data Rel = Expr :==: Expr
@@ -98,9 +98,9 @@ data Rel = Expr :==: Expr
          deriving (Eq, Show)
 
 rel1, rel2, rel3 :: Rel
-rel1 = EInt 1 :==: ((EInt 3 `ETimes` EVar "x") `EPlus` (EInt 2 `ETimes` EVar "y") `EMinus` EVar "z")
-rel2 = EInt (-2) :==: ((EInt 2 `ETimes` EVar "x") `EPlus` (EInt (-2) `EPlus` EVar "y") `EPlus` (EInt 4 `ETimes` EVar "z"))
-rel3 = EInt 0 :==: ((EInt (-1) `ETimes` EVar "x") `EPlus` (EReal 0.5 `ETimes` EVar "y") `EPlus` (EInt (-1) `ETimes` EVar "z"))
+rel1 = EInt 1 :==: ((EInt 3 :*: EVar "x") :+: (EInt 2 :*: EVar "y") :-: EVar "z")
+rel2 = EInt (-2) :==: ((EInt 2 :*: EVar "x") :+: (EInt (-2) :+: EVar "y") :+: (EInt 4 :*: EVar "z"))
+rel3 = EInt 0 :==: ((EInt (-1) :*: EVar "x") :+: (EReal 0.5 :*: EVar "y") :+: (EInt (-1) :*: EVar "z"))
 
 evalRel :: MonadZ3 z3 => Map.Map Expr AST -> Rel -> z3 (Map.Map Expr AST, AST)
 evalRel m (lhs :==: rhs) = do
@@ -156,17 +156,17 @@ evalExpr m key@(EReal d)
       Nothing -> do
         v <- mkRealNum d
         return (Map.insert key v m, v)
-evalExpr m (EPlus x y) = do
+evalExpr m (x :+: y) = do
   (m1, x') <- evalExpr m  x
   (m2, y') <- evalExpr m1 y
   v <- mkAdd [x', y']
   return (m2, v)
-evalExpr m (EMinus x y) = do
+evalExpr m (x :-: y) = do
   (m1, x') <- evalExpr m  x
   (m2, y') <- evalExpr m1 y
   v <- mkSub [x', y']
   return (m2, v)
-evalExpr m (ETimes x y) = do
+evalExpr m (x :*: y) = do
   (m1, x') <- evalExpr m  x
   (m2, y') <- evalExpr m1 y
   v <- mkMul [x', y']
