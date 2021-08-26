@@ -1,12 +1,24 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Chap01.Equation1 where
 
 import Control.Arrow (first)
 import Control.Monad (foldM)
+import Control.Monad.State
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Traversable as T
 
 import Z3.Monad
+
+instance MonadZ3 z3 => MonadZ3 (StateT s z3) where
+  -- getSolver :: StateT s z3 Solver
+  getSolver = StateT $ \s -> do
+    svr <- getSolver
+    return (svr, s)
+  -- getContext :: StateT s z3 Context
+  getContext = StateT $ \s -> do
+    ctx <- getContext
+    return (ctx, s)
 
 {- |
 >>> evalZ3 sample
@@ -33,6 +45,7 @@ sample = do
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
+{--
 simple :: Z3 (Maybe [Integer])
 simple = do
   (_, m1) <- constraint [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
@@ -41,6 +54,7 @@ simple = do
                         ] Map.empty
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
+--}
 
 query' :: Map.Map Expr AST -> [Expr] -> [AST]
 query' = mapMaybe . flip Map.lookup
@@ -50,22 +64,19 @@ query m e@(EVar var) o = do
   let Just x = Map.lookup e m
   evalInt o x
 
-constraint :: MonadZ3 z3 => [Rel] -> Map.Map Expr AST -> z3 ((), Map.Map Expr AST)
-constraint rels m = do
-  (rs, m') <- evalRels rels m
+constraint :: MonadZ3 z3 => [Rel] -> StateT (Map.Map Expr AST) z3 ()
+constraint rels = do
+  m <- get
+  (rs, m') <- runStateT (evalRels rels) m
   assert =<< mkAnd rs
-  return ((), m')
-
-evalRels :: MonadZ3 z3 => [Rel] -> Map.Map Expr AST -> z3 ([AST], Map.Map Expr AST)
-evalRels rels m0 = first reverse <$> foldM f ([], m0) rels
-  where f (rs, m) rel = do
-          (r,  m') <- evalRel rel m
-          return (r:rs, m')
+  put m'
+  return ()
 
 {- |
 >>> evalZ3 test
 Just [1,2]
 -}
+{--
 test :: Z3 (Maybe [Integer])
 test = do
   let m0 = Map.empty
@@ -78,6 +89,7 @@ test = do
   let (Just y) = Map.lookup (EVar "y") m4
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y]
+--}
 
 data Expr = EVar String
           | EInt Integer
@@ -104,72 +116,104 @@ rel1 = EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :-: EVar
 rel2 = EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :+: EVar "y" :+: EInt 4    :*: EVar "z"
 rel3 = EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
 
-evalRel :: MonadZ3 z3 => Rel -> Map.Map Expr AST -> z3 (AST, Map.Map Expr AST)
-evalRel (lhs :==: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel <- mkEq lhs' rhs'
-  return (rel, m2)
-evalRel (lhs :/=: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel  <- mkNot =<< mkEq lhs' rhs'
-  return (rel, m2)
-evalRel (lhs :<: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel <- mkLt lhs' rhs'
-  return (rel, m2)
-evalRel (lhs :>: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel <- mkGt lhs' rhs'
-  return (rel, m2)
-evalRel (lhs :<=: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel <- mkLe lhs' rhs'
-  return (rel, m2)
-evalRel (lhs :>=: rhs) m = do
-  (lhs', m1) <- evalExpr lhs m
-  (rhs', m2) <- evalExpr rhs m1
-  rel <- mkGe lhs' rhs'
-  return (rel, m2)
+evalRels :: MonadZ3 z3 => [Rel] -> StateT (Map.Map Expr AST) z3 [AST]
+evalRels = foldM f []
+  where f rs rel = do
+          m <- get
+          (r,  m') <- runStateT (evalRel rel) m
+          put m'
+          return (r:rs)
 
-evalExpr :: MonadZ3 z3 => Expr -> Map.Map Expr AST -> z3 (AST, Map.Map Expr AST)
-evalExpr key@(EVar x) m
-  = case Map.lookup key m of
+evalRel :: MonadZ3 z3 => Rel -> StateT (Map.Map Expr AST) z3 AST
+evalRel (lhs :==: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel <- mkEq lhs' rhs'
+  put m2
+  return rel
+evalRel (lhs :/=: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel  <- mkNot =<< mkEq lhs' rhs'
+  put m2
+  return rel
+evalRel (lhs :<: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel <- mkLt lhs' rhs'
+  put m2
+  return rel
+evalRel (lhs :>: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel <- mkGt lhs' rhs'
+  put m2
+  return rel
+evalRel (lhs :<=: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel <- mkLe lhs' rhs'
+  put m2
+  return rel
+evalRel (lhs :>=: rhs) = do
+  m <- get
+  (lhs', m1) <- runStateT (evalExpr lhs) m
+  (rhs', m2) <- runStateT (evalExpr rhs) m1
+  rel <- mkGe lhs' rhs'
+  put m2
+  return rel
+
+evalExpr :: MonadZ3 z3 => Expr -> StateT (Map.Map Expr AST) z3 AST
+evalExpr key@(EVar x) = do
+  m <- get
+  case Map.lookup key m of
       Just v -> do
-        return (v, m)
+        return v
       Nothing -> do
         v <- mkFreshIntVar x
-        return (v, Map.insert key v m)
-evalExpr key@(EInt n) m
-  = case Map.lookup key m of
+        put (Map.insert key v m)
+        return v
+evalExpr key@(EInt n) = do
+  m <- get
+  case Map.lookup key m of
       Just v -> do
-        return (v, m)
+        return v
       Nothing -> do
         v <- mkInteger n
-        return (v, Map.insert key v m)
-evalExpr key@(EReal d) m
-  = case Map.lookup key m of
+        put (Map.insert key v m)
+        return v
+evalExpr key@(EReal d) = do
+  m <- get
+  case Map.lookup key m of
       Just v -> do
-        return (v, m)
+        return v
       Nothing -> do
         v <- mkRealNum d
-        return (v, Map.insert key v m)
-evalExpr (x :+: y) m = do
-  (x', m1) <- evalExpr x  m
-  (y', m2) <- evalExpr y m1
+        put (Map.insert key v m)
+        return v
+evalExpr (x :+: y) = do
+  m <- get
+  (x', m1) <- runStateT (evalExpr x) m
+  (y', m2) <- runStateT (evalExpr y) m1
   v <- mkAdd [x', y']
-  return (v, m2)
-evalExpr (x :-: y) m = do
-  (x', m1) <- evalExpr x  m
-  (y', m2) <- evalExpr y m1
+  put m2
+  return v
+evalExpr (x :-: y) = do
+  m <- get
+  (x', m1) <- runStateT (evalExpr x) m
+  (y', m2) <- runStateT (evalExpr y) m1
   v <- mkSub [x', y']
-  return (v, m2)
-evalExpr (x :*: y) m = do
-  (x', m1) <- evalExpr x  m
-  (y', m2) <- evalExpr y m1
+  put m2
+  return v
+evalExpr (x :*: y) = do
+  m <- get
+  (x', m1) <- runStateT (evalExpr x) m
+  (y', m2) <- runStateT (evalExpr y) m1
   v <- mkMul [x', y']
-  return (v, m2)
+  put m2
+  return v
