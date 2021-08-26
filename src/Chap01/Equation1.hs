@@ -35,12 +35,10 @@ sample = do
 
 simple :: Z3 (Maybe [Integer])
 simple = do
-  let m0 = Map.empty
-  m1 <- constraint m0
-        [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
-        , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
-        , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
-        ]
+  (_, m1) <- constraint [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
+                        , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
+                        , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
+                        ] Map.empty
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
 
@@ -52,11 +50,11 @@ query m e@(EVar var) o = do
   let Just x = Map.lookup e m
   evalInt o x
 
-constraint :: MonadZ3 z3 => Map.Map Expr AST -> [Rel] -> z3 (Map.Map Expr AST)
-constraint m rels = do
+constraint :: MonadZ3 z3 => [Rel] -> Map.Map Expr AST -> z3 ((), Map.Map Expr AST)
+constraint rels m = do
   (rs, m') <- evalRels rels m
   assert =<< mkAnd rs
-  return m'
+  return ((), m')
 
 evalRels :: MonadZ3 z3 => [Rel] -> Map.Map Expr AST -> z3 ([AST], Map.Map Expr AST)
 evalRels rels m0 = first reverse <$> foldM f ([], m0) rels
