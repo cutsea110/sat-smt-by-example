@@ -18,7 +18,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
 library
-  exposed-modules:     MyLib
+  exposed-modules:     Language
                      , Chap01.Equation1
   -- other-modules:
   -- other-extensions:
