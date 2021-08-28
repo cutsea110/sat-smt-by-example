@@ -32,6 +32,8 @@ data Expr = EVar String
           | Expr :+: Expr
           | Expr :-: Expr
           | Expr :*: Expr
+          | Rel :&&: Rel
+          | Rel :||: Rel
           deriving (Eq, Ord, Show)
 
 data Rel = Expr :==: Expr
@@ -40,7 +42,7 @@ data Rel = Expr :==: Expr
          | Expr :>: Expr
          | Expr :<=: Expr
          | Expr :>=: Expr
-         deriving (Eq, Show)
+         deriving (Eq, Ord, Show)
 
 infixl 7 :*:
 infixl 6 :+:, :-:
@@ -147,6 +149,22 @@ liftExpr (x :*: y) = do
   v <- mkMul [x', y']
   put m2
   return v
+liftExpr (x :&&: y) = do
+  m <- get
+  (x', m1) <- runStateT (liftRel x) m
+  (y', m2) <- runStateT (liftRel y) m1
+  v <- mkAnd [x', y']
+  put m
+  return v
+liftExpr (x :||: y) = do
+  m <- get
+  (x', m1) <- runStateT (liftRel x) m
+  (y', m2) <- runStateT (liftRel y) m1
+  v <- mkOr [x', y']
+  put m
+  return v
+
+
 
 query :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
 query es = do
