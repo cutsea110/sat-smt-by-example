@@ -47,7 +47,7 @@ sample = do
 
 {- |
 >>> runZ3 simple
-Just [1, 2, 3]
+Just [1,-2,-2]
 -}
 simple :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
 simple = do
