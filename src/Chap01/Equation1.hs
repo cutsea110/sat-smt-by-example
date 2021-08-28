@@ -45,6 +45,20 @@ sample = do
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y, z]
 
+{- |
+>>> runZ3 simple
+Just [1, 2, 3]
+-}
+simple :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+simple = do
+  constraint [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
+             , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
+             , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
+             ]
+  xs <- query [EVar "x", EVar "y", EVar "z"]
+  fmap snd $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) xs
+
 {--
 simple :: Z3 (Maybe [Integer])
 simple = do
@@ -53,18 +67,19 @@ simple = do
                         , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
                         ] Map.empty
   fmap snd $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
+    catMaybes <$> mapM (evalInt m) (query m1 [EVar "x", EVar "y", EVar "z"])
 --}
 
-query' :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
-query' es = do
+query :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
+query es = do
   m <- get
   return $ mapMaybe (`Map.lookup` m) es
 
--- | TODO: EVar を EIVar とかして Typable にしつつ evalReal などを呼ぶようにしたい
+{-- | TODO: EVar を EIVar とかして Typable にしつつ evalReal などを呼ぶようにしたい
 query m e@(EVar var) o = do
   let Just x = Map.lookup e m
   evalInt o x
+--}
 
 constraint :: MonadZ3 z3 => [Rel] -> StateT (Map.Map Expr AST) z3 ()
 constraint rels = do
@@ -89,7 +104,7 @@ test = do
              , EVar "y" :>=: EVar "x"
              , EInt 3 :==: EVar "x" :+: EVar "y"
              ]
-  xs <- query' [EVar "x", EVar "y"]
+  xs <- query [EVar "x", EVar "y"]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
 {--
