@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 module Language
   ( Expr (..)
   , Rel (..)
@@ -25,6 +26,16 @@ instance MonadZ3 z3 => MonadZ3 (StateT s z3) where
     ctx <- getContext
     return (ctx, s)
 
+newtype SZ3 a = SZ3 { out :: StateT (Map.Map Expr AST) Z3 a }
+  deriving (Functor, Applicative, Monad, MonadIO)
+
+instance MonadZ3 SZ3 where
+  getSolver = SZ3 . StateT $ \s -> do
+    svr <- getSolver
+    return (svr, s)
+  getContext = SZ3 . StateT $ \s -> do
+    ctx <- getContext
+    return (ctx, s)
 
 data Expr = EVar String
           | EInt Integer

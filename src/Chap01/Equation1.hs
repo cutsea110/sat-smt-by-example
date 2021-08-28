@@ -6,6 +6,7 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Traversable as T
+import GHC.Real
 
 import Z3.Monad
 
