@@ -56,8 +56,10 @@ simple = do
     catMaybes <$> mapM (evalInt m) (query' m1 [EVar "x", EVar "y", EVar "z"])
 --}
 
-query' :: MonadZ3 z3 => [Expr] -> Map.Map Expr AST  -> z3 ([AST], Map.Map Expr AST)
-query' es m = return (mapMaybe (`Map.lookup` m) es, m)
+query' :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
+query' es = do
+  m <- get
+  return $ mapMaybe (`Map.lookup` m) es
 
 -- | TODO: EVar を EIVar とかして Typable にしつつ evalReal などを呼ぶようにしたい
 query m e@(EVar var) o = do
@@ -72,9 +74,19 @@ constraint rels = do
   assert =<< mkAnd rs
 
 {- |
->>> evalZ3 test
+>>> fst <$> evalZ3 ((runStateT\ test) Map.empty)
 Just [1,2]
 -}
+test :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+test = do
+  _ <- constraint [ EVar "x" :>: EInt 0
+                  , EVar "y" :>: EInt 0
+                  , EVar "y" :>=: EVar "x"
+                  , EInt 3 :==: EVar "x" :+: EVar "y"
+                  ]
+  xs <- query' [EVar "x", EVar "y"]
+  fmap snd $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) xs
 {--
 test :: Z3 (Maybe [Integer])
 test = do
