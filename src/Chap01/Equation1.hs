@@ -73,17 +73,22 @@ constraint rels = do
   put m'
   assert =<< mkAnd rs
 
+
+-- | Utility function
+runZ3 :: StateT (Map.Map k a) Z3 b -> IO b
+runZ3 prog = fst <$> evalZ3 (prog `runStateT` Map.empty)
+
 {- |
->>> fst <$> evalZ3 ((runStateT\ test) Map.empty)
+>>> runZ3 test
 Just [1,2]
 -}
 test :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
 test = do
-  _ <- constraint [ EVar "x" :>: EInt 0
-                  , EVar "y" :>: EInt 0
-                  , EVar "y" :>=: EVar "x"
-                  , EInt 3 :==: EVar "x" :+: EVar "y"
-                  ]
+  constraint [ EVar "x" :>: EInt 0
+             , EVar "y" :>: EInt 0
+             , EVar "y" :>=: EVar "x"
+             , EInt 3 :==: EVar "x" :+: EVar "y"
+             ]
   xs <- query' [EVar "x", EVar "y"]
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
