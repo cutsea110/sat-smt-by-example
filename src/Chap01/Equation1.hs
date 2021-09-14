@@ -75,15 +75,16 @@ query m e@(EVar var) o = do
 >>> runZ3 test
 Just [1,2]
 -}
-test :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+test :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 [(String, Integer)]
 test = do
   constraint [ EVar "x" :>: EInt 0
              , EVar "y" :>: EInt 0
              , EVar "y" :>=: EVar "x"
              , EInt 3 :==: EVar "x" :+: EVar "y"
              ]
-  xs <- query [EVar "x", EVar "y"]
-  fmap snd $ withModel $ \m ->
+  let vars = ["x", "y"]
+  xs <- query $ map EVar vars
+  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
 {--
 test :: Z3 (Maybe [Integer])
