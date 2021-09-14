@@ -49,10 +49,7 @@ simple = do
              , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
              , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
              ]
-  let vars = ["x", "y", "z"]
-  xs <- query $ map EVar vars
-  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) xs
+  returnInts ["x", "y", "z"]
 
 {--
 simple :: Z3 (Maybe [Integer])
@@ -83,10 +80,7 @@ test = do
              , EVar "y" :>=: EVar "x"
              , EInt 3 :==: EVar "x" :+: EVar "y"
              ]
-  let vars = ["x", "y"]
-  xs <- query $ map EVar vars
-  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) xs
+  returnInts ["x", "y"]
 {--
 test :: Z3 (Maybe [Integer])
 test = do
@@ -108,7 +102,10 @@ test2 = do
              , EVar "circle" :*: EVar "square" :+: EVar "square" :==: EInt 12
              , EVar "circle" :*: EVar "square" :-: EVar "triangle" :*: EVar "circle" :==: EVar "circle"
              ]
-  let vars = ["circle", "square", "triangle"]
-  xs <- query $ map EVar vars
-  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
+  returnInts ["circle", "square", "triangle"]
+
+returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
+returnInts names = do
+  xs <- query $ map EVar names
+  fmap (maybe [] (zip names) . snd) $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
