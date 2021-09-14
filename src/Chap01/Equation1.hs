@@ -98,3 +98,13 @@ test = do
   fmap snd $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) [x, y]
 --}
+
+test2 :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+test2 = do
+  constraint [ EVar "circle" :+: EVar "circle" :==: EInt 10
+             , EVar "circle" :*: EVar "square" :+: EVar "square" :==: EInt 12
+             , EVar "circle" :*: EVar "square" :-: EVar "triangle" :*: EVar "circle" :==: EVar "circle"
+             ]
+  xs <- query [EVar "circle", EVar "square", EVar "triangle"]
+  fmap snd $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) xs
