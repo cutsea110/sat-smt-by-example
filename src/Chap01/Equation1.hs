@@ -43,14 +43,15 @@ sample = do
 >>> runZ3 simple
 Just [1,-2,-2]
 -}
-simple :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+simple :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 [(String, Integer)]
 simple = do
   constraint [ EInt 1    :==: EInt 3    :*: EVar "x" :+: EInt 2    :*: EVar "y" :+: EInt (-1) :*: EVar "z"
              , EInt (-2) :==: EInt 2    :*: EVar "x" :+: EInt (-2) :*: EVar "y" :+: EInt 4    :*: EVar "z"
              , EInt 0    :==: EInt (-1) :*: EVar "x" :+: EReal 0.5 :*: EVar "y" :+: EInt (-1) :*: EVar "z"
              ]
-  xs <- query [EVar "x", EVar "y", EVar "z"]
-  fmap snd $ withModel $ \m ->
+  let vars = ["x", "y", "z"]
+  xs <- query $ map EVar vars
+  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
 
 {--
