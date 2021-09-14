@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Chap01.Equation1 where
 
 import Control.Arrow (first)
@@ -99,12 +100,13 @@ test = do
     catMaybes <$> mapM (evalInt m) [x, y]
 --}
 
-test2 :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 (Maybe [Integer])
+test2 :: MonadZ3 z3 => StateT (Map.Map Expr AST) z3 [(String, Integer)]
 test2 = do
   constraint [ EVar "circle" :+: EVar "circle" :==: EInt 10
              , EVar "circle" :*: EVar "square" :+: EVar "square" :==: EInt 12
              , EVar "circle" :*: EVar "square" :-: EVar "triangle" :*: EVar "circle" :==: EVar "circle"
              ]
-  xs <- query [EVar "circle", EVar "square", EVar "triangle"]
-  fmap snd $ withModel $ \m ->
+  let vars = ["circle", "square", "triangle"]
+  xs <- query $ map EVar vars
+  fmap (maybe [] (zip vars) . snd) $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
