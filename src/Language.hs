@@ -8,6 +8,7 @@ module Language
   , query
   , constraint
   , runZ3
+  , returnInts
   ) where
 
 import Control.Monad.State
@@ -194,3 +195,8 @@ constraint rels = do
 runZ3 :: StateT (Map.Map k a) Z3 b -> IO b
 runZ3 prog = fst <$> evalZ3 (prog `runStateT` Map.empty)
 
+returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
+returnInts names = do
+  xs <- query $ map EVar names
+  fmap (maybe [] (zip names) . snd) $ withModel $ \m ->
+    catMaybes <$> mapM (evalInt m) xs

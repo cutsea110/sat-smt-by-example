@@ -104,8 +104,3 @@ test2 = do
              ]
   returnInts ["circle", "square", "triangle"]
 
-returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
-returnInts names = do
-  xs <- query $ map EVar names
-  fmap (maybe [] (zip names) . snd) $ withModel $ \m ->
-    catMaybes <$> mapM (evalInt m) xs
