@@ -5,7 +5,7 @@ module Language
   , Rel (..)
   , liftRels, liftRel
   , liftExpr
-  , query
+  , queries
   , constraint
   , runZ3
   , returnInts
@@ -177,11 +177,16 @@ liftExpr (x :||: y) = do
   return v
 
 
+query :: MonadZ3 z3 => Expr -> StateT (Map.Map Expr AST) z3 (Maybe AST)
+query x = do
+  m <- get
+  return $ x `Map.lookup` m
 
-query :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
-query es = do
+queries :: MonadZ3 z3 => [Expr] -> StateT (Map.Map Expr AST) z3 [AST]
+queries es = do
   m <- get
   return $ mapMaybe (`Map.lookup` m) es
+
 
 constraint :: MonadZ3 z3 => [Rel] -> StateT (Map.Map Expr AST) z3 ()
 constraint rels = do
@@ -195,8 +200,12 @@ constraint rels = do
 runZ3 :: StateT (Map.Map k a) Z3 b -> IO b
 runZ3 prog = fst <$> evalZ3 (prog `runStateT` Map.empty)
 
+returnInt :: MonadZ3 z3 => Expr -> StateT (Map.Map Expr AST) z3 (Maybe (String, Integer))
+returnInt e@(EVar s) = undefined
+returnInt _ = error "EVar is required."
+
 returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
 returnInts names = do
-  xs <- query $ map EVar names
+  xs <- queries $ map EVar names
   fmap (maybe [] (zip names) . snd) $ withModel $ \m ->
     catMaybes <$> mapM (evalInt m) xs
