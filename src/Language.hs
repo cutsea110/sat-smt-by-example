@@ -201,7 +201,17 @@ runZ3 :: StateT (Map.Map k a) Z3 b -> IO b
 runZ3 prog = fst <$> evalZ3 (prog `runStateT` Map.empty)
 
 returnInt :: MonadZ3 z3 => Expr -> StateT (Map.Map Expr AST) z3 (Maybe (String, Integer))
-returnInt e@(EVar s) = undefined
+returnInt e@(EVar s) = do
+  x <- query e
+  case x of
+    Nothing -> return Nothing
+    Just x' -> do
+      (_, v) <- withModel $ \m -> evalInt m x'
+      case v of
+        Nothing -> return Nothing
+        Just v' -> case v' of
+          Nothing  -> return Nothing
+          Just v'' -> return (Just (s, v''))
 returnInt _ = error "EVar is required."
 
 returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
