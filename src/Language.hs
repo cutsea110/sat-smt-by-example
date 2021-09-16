@@ -207,7 +207,7 @@ returnInt e@(EVar s) = do
   case x of
     Nothing -> return Nothing
     Just x' -> do
-      (_, v) <- withModel (`evalInt` x')
+      v <- snd <$> withModel (`evalInt` x')
       return $ ((s,) <$>) =<< v
 returnInt _ = error "EVar is required."
 
