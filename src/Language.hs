@@ -207,10 +207,8 @@ returnInt e@(EVar s) = do
   case x of
     Nothing -> return Nothing
     Just x' -> do
-      (_, v) <- withModel $ \m -> evalInt m x'
-      case v of
-        Nothing -> return Nothing
-        Just v' -> return $ (s,) <$> v'
+      (_, v) <- withModel (`evalInt` x')
+      return $ ((s,) <$>) =<< v
 returnInt _ = error "EVar is required."
 
 returnInts :: MonadZ3 z3 => [String] -> StateT (Map.Map Expr AST) z3 [(String, Integer)]
